@@ -1,60 +1,32 @@
 "use client";
 
 import React, {
-  KeyboardEventHandler,
+  Dispatch,
+  SetStateAction,
   useEffect,
   useRef,
   useState,
 } from "react";
-import MenuList from "./MenuList";
 
 interface ListItem {
-  name: string;
+  label: string;
+  value: string;
 }
 
-const LISTITEMS: ListItem[] = [
-  {
-    name: "Sumeet Debnath",
-  },
-  {
-    name: "Sunil Debnath",
-  },
-  {
-    name: "Suraj Raj",
-  },
-  {
-    name: "Suman",
-  },
-  {
-    name: "Swapan",
-  },
-  {
-    name: "Sunil man",
-  },
-  {
-    name: "Sumit Dev",
-  },
-  {
-    name: "SSSSSsssssssssssssssssssssssssssssssssssss",
-  },
-  {
-    name: "S. Gamer",
-  },
-  {
-    name: "Ranti",
-  },
-  {
-    name: "Gouri",
-  },
-  {
-    name: "Kanchan",
-  },
-];
+interface SelectChipProps {
+  listItems: ListItem[];
+  selectedItems: ListItem[];
+  onSelect: Dispatch<SetStateAction<ListItem[]>>;
+}
 
-const SelectChip: React.FC = () => {
+const SelectChip: React.FC<SelectChipProps> = ({
+  listItems,
+  onSelect,
+  selectedItems,
+}) => {
   const [inputValue, setInputValue] = useState<string>("");
   const [showList, setShowList] = useState<boolean>(false);
-  const [selectedItems, setSelectedItems] = useState<ListItem[]>([]);
+  // const [selectedItems, setSelectedItems] = useState<ListItem[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
@@ -68,26 +40,30 @@ const SelectChip: React.FC = () => {
     }
   };
 
-  const filteredItems = LISTITEMS.filter((item) => {
+  const filteredItems = listItems.filter((item) => {
     const isItemSelected = selectedItems.some(
-      (selectedItem) => selectedItem.name === item.name
+      (selectedItem) => selectedItem.label === item.label
     );
-    const includesInput = item.name
+    const includesInput = item.label
       .toLocaleLowerCase()
       .includes(inputValue.toLocaleLowerCase());
     return !isItemSelected && includesInput;
   });
 
-  const handleClick = (name: string) => {
+  const handleClick = (item: ListItem) => {
     setInputValue("");
-    setSelectedItems((prev) => [...prev, { name }]);
+    onSelect((prev) => [...prev, item]);
     inputRef.current?.focus();
     setShowList(false);
     setHighlightedIndex(-1);
   };
-  const removeSelected = (name: string) => {
-    setSelectedItems((prev) => prev.filter((item) => item.name !== name));
+
+  const removeSelected = (item: ListItem) => {
+    onSelect((prev) =>
+      prev.filter((listItem) => listItem.label !== item.label)
+    );
   };
+
   const handleKeyDown = (event: React.KeyboardEvent) => {
     if (event.key === "ArrowUp") {
       setHighlightedIndex((prev) =>
@@ -97,7 +73,7 @@ const SelectChip: React.FC = () => {
       setHighlightedIndex((prev) => (prev + 1) % filteredItems.length);
     } else if (event.key === "Enter" && highlightedIndex !== -1) {
       if (filteredItems.length !== 0) {
-        const selectedName = filteredItems[highlightedIndex].name;
+        const selectedName = filteredItems[highlightedIndex];
         handleClick(selectedName);
       }
     }
@@ -115,11 +91,10 @@ const SelectChip: React.FC = () => {
     }
   }, [highlightedIndex]);
 
-  // useEffect(() => {
-  //   if (showList) {
-  //     setHighlightedIndex(0);
-  //   }
-  // }, [showList]);
+  useEffect(() => {
+    onSelect(selectedItems);
+  }, [selectedItems, onSelect]);
+
   return (
     <>
       <div className="border-b-2 border-blue-700 bg-transparent w-full flex flex-wrap px-1 pb-1">
@@ -128,9 +103,9 @@ const SelectChip: React.FC = () => {
             {selectedItems.map((item) => (
               <span
                 className="flex items-center gap-2 bg-stone-200 py-1 px-2 rounded-full h-[36px]"
-                key={item.name}>
-                <p className="truncate max-w-[200px]">{item.name}</p>
-                <button onClick={() => removeSelected(item.name)}>X</button>
+                key={item.label}>
+                <p className="truncate max-w-[200px]">{item.label}</p>
+                <button onClick={() => removeSelected(item)}>X</button>
               </span>
             ))}
           </div>
@@ -147,7 +122,6 @@ const SelectChip: React.FC = () => {
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             onFocus={() => setShowList(inputValue.length > 0)}
-            // onBlur={() => setShowList(false)}
           />
           {showList && filteredItems.length > 0 && (
             <ul
@@ -158,10 +132,10 @@ const SelectChip: React.FC = () => {
                   className={`hover:bg-stone-200 pl-2 pr-1 py-1 ${
                     index === highlightedIndex ? "bg-blue-200" : ""
                   }`}
-                  key={item.name}
-                  onClick={() => handleClick(item.name)}
+                  key={item.label}
+                  onClick={() => handleClick(item)}
                   role="button">
-                  <div className="w-full truncate">{item.name}</div>
+                  <div className="w-full truncate">{item.label}</div>
                 </li>
               ))}
             </ul>
