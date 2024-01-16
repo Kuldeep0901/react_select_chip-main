@@ -1,9 +1,11 @@
 "use client";
 
+import Image from "next/image";
 import React, {
   Dispatch,
   SetStateAction,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -11,6 +13,7 @@ import React, {
 interface ListItem {
   label: string;
   value: string;
+  image?: string;
 }
 
 interface SelectChipProps {
@@ -19,6 +22,15 @@ interface SelectChipProps {
   onSelect: Dispatch<SetStateAction<ListItem[]>>;
 }
 
+const getRandomHexColor = () => {
+  const letters = "0123456789ABCDEF";
+  let color = "#";
+  for (let i = 0; i < 6; i++) {
+    color += letters[Math.floor(Math.random() * 16)];
+  }
+  return color;
+};
+
 const SelectChip: React.FC<SelectChipProps> = ({
   listItems,
   onSelect,
@@ -26,8 +38,9 @@ const SelectChip: React.FC<SelectChipProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState<string>("");
   const [showList, setShowList] = useState<boolean>(false);
-  // const [selectedItems, setSelectedItems] = useState<ListItem[]>([]);
   const [highlightedIndex, setHighlightedIndex] = useState<number>(-1);
+  const [highlightedChip, setHighlightedChip] = useState(false);
+
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLUListElement>(null);
 
@@ -36,19 +49,25 @@ const SelectChip: React.FC<SelectChipProps> = ({
     setInputValue(value);
     if (value.length > 0) {
       setHighlightedIndex(0);
-      setShowList(true);
+      if (filteredItems.length > 0) {
+        setShowList(true);
+      }
     }
   };
 
-  const filteredItems = listItems.filter((item) => {
-    const isItemSelected = selectedItems.some(
-      (selectedItem) => selectedItem.label === item.label
-    );
-    const includesInput = item.label
-      .toLocaleLowerCase()
-      .includes(inputValue.toLocaleLowerCase());
-    return !isItemSelected && includesInput;
-  });
+  const filteredItems = useMemo(
+    () =>
+      listItems.filter((item) => {
+        const isItemSelected = selectedItems.some(
+          (selectedItem) => selectedItem.label === item.label
+        );
+        const includesInput = item.label
+          .toLocaleLowerCase()
+          .includes(inputValue.toLocaleLowerCase());
+        return !isItemSelected && includesInput;
+      }),
+    [inputValue, listItems, selectedItems]
+  );
 
   const handleClick = (item: ListItem) => {
     setInputValue("");
@@ -65,16 +84,27 @@ const SelectChip: React.FC<SelectChipProps> = ({
   };
 
   const handleKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === "ArrowUp") {
+    if (event.code === "ArrowUp") {
       setHighlightedIndex((prev) =>
         prev - 1 < 0 ? filteredItems.length - 1 : prev - 1
       );
-    } else if (event.key === "ArrowDown") {
+    } else if (event.code === "ArrowDown") {
       setHighlightedIndex((prev) => (prev + 1) % filteredItems.length);
-    } else if (event.key === "Enter" && highlightedIndex !== -1) {
+    } else if (event.code === "Enter" && highlightedIndex !== -1) {
       if (filteredItems.length !== 0) {
-        const selectedName = filteredItems[highlightedIndex];
-        handleClick(selectedName);
+        const selectedItem = filteredItems[highlightedIndex];
+        handleClick(selectedItem);
+      }
+    } else if (
+      event.key === "Backspace" &&
+      inputValue === "" &&
+      selectedItems.length > 0
+    ) {
+      setHighlightedChip(true);
+      if (highlightedChip) {
+        const lastSelectedItem = selectedItems[selectedItems.length - 1];
+        removeSelected(lastSelectedItem);
+        setHighlightedChip(false);
       }
     }
   };
@@ -91,29 +121,50 @@ const SelectChip: React.FC<SelectChipProps> = ({
     }
   }, [highlightedIndex]);
 
-  useEffect(() => {
-    onSelect(selectedItems);
-  }, [selectedItems, onSelect]);
-
   return (
     <>
       <div className="border-b-2 border-blue-700 bg-transparent w-full flex flex-wrap px-1 pb-1">
         {selectedItems.length > 0 ? (
           <div className="flex gap-2 flex-wrap">
-            {selectedItems.map((item) => (
-              <span
-                className="flex items-center gap-2 bg-stone-200 py-1 px-2 rounded-full h-[36px]"
-                key={item.label}>
-                <p className="truncate max-w-[200px]">{item.label}</p>
-                <button onClick={() => removeSelected(item)}>X</button>
-              </span>
-            ))}
+            {selectedItems.map((item, index) => {
+              const color = `${getRandomHexColor()}`;
+              return (
+                <div
+                  className={`flex items-center gap-2 bg-stone-200 py-1 pr-2 rounded-full h-[36px] border-2 ${
+                    highlightedChip && index === selectedItems.length - 1
+                      ? "border-blue-400"
+                      : ""
+                  }`}
+                  key={item.label}>
+                  {item.image ? (
+                    <img
+                      src={item.image}
+                      alt={item.label}
+                      width={36}
+                      height={36}
+                      className="object-cover h-[36px] w-[36px] rounded-full"
+                    />
+                  ) : (
+                    <span
+                      style={{
+                        backgroundColor: color,
+                      }}
+                      className={`w-[36px] h-[36px] rounded-full`}
+                    />
+                  )}
+                  <p className="truncate max-w-[200px]">{item.label}</p>
+                  <button onClick={() => removeSelected(item)}>X</button>
+                </div>
+              );
+            })}
           </div>
         ) : null}
         <div className="relative min-w-[200px] flex-1 h-[36px] ml-1">
           <input
+            autoComplete="off"
             ref={inputRef}
             id="chipselect"
+            placeholder={`${selectedItems.length === 0 ? "Add new user" : ""}`}
             name="chipselect"
             autoFocus
             type="text"
@@ -127,17 +178,36 @@ const SelectChip: React.FC<SelectChipProps> = ({
             <ul
               ref={listRef}
               className="absolute top-[40px] overflow-x-hidden flex flex-col gap-2 p-2 w-[300px] shadow-lg max-h-[220px] overflow-auto bg-stone-100 scrollbar-thin scrollbar-thumb-gray-500 scrollbar-track-gray-200">
-              {filteredItems.map((item, index) => (
-                <li
-                  className={`hover:bg-stone-200 pl-2 pr-1 py-1 ${
-                    index === highlightedIndex ? "bg-blue-200" : ""
-                  }`}
-                  key={item.label}
-                  onClick={() => handleClick(item)}
-                  role="button">
-                  <div className="w-full truncate">{item.label}</div>
-                </li>
-              ))}
+              {filteredItems.map((item, index) => {
+                const color = `${getRandomHexColor()}`;
+                return (
+                  <li
+                    className={`flex items-center gap-2 hover:bg-stone-200 pl-2 pr-1 py-1 ${
+                      index === highlightedIndex ? "bg-blue-200" : ""
+                    }`}
+                    key={item.label}
+                    onClick={() => handleClick(item)}
+                    role="button">
+                    {item.image ? (
+                      <img
+                        src={item.image}
+                        alt={item.label}
+                        width={40}
+                        height={40}
+                        className="object-cover h-[40px] w-[40px] rounded-full"
+                      />
+                    ) : (
+                      <span
+                        style={{
+                          backgroundColor: color,
+                        }}
+                        className={`w-[50px] h-[40px] rounded-full`}
+                      />
+                    )}
+                    <div className="w-full truncate">{item.label}</div>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

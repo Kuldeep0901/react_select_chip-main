@@ -3,7 +3,12 @@ import SelectChip from "@/components/SelectChip";
 import { useState } from "react";
 
 const LISTITEMS = [
-  { label: "Sumeet Debnath", value: "sumeet_debnath" },
+  {
+    label: "Sumeet Debnath",
+    value: "sumeet_debnath",
+    image:
+      "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRC8kiSH5ZSAcVoj3tAQQDoP_ux0sSricMyUg&usqp=CAU",
+  },
   { label: "Sunil Debnath", value: "sunil_debnath" },
   { label: "Suraj Raj", value: "suraj_raj" },
   { label: "Suman", value: "suman" },
@@ -23,6 +28,7 @@ const LISTITEMS = [
 interface ListItem {
   label: string;
   value: string;
+  image?: string;
 }
 
 export default function Home() {
